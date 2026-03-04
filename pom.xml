@@ -44,6 +44,7 @@
         <module>lightwind-layer-search</module>
         <module>lightwind-layer-export</module>
         <module>lightwind-layer-integration</module>
+        <module>lightwind-layer-realtime</module>
         <module>lightwind-build</module>
     </modules>
 

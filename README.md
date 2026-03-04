@@ -474,6 +474,7 @@ Lightwind provides additional modules for common SaaS needs. Add them as depende
 | Search | `dev.kakrizky:lightwind-layer-search:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-search:0.1.0")` |
 | Export | `dev.kakrizky:lightwind-layer-export:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-export:0.1.0")` |
 | Integration | `dev.kakrizky:lightwind-layer-integration:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-integration:0.1.0")` |
+| Realtime | `dev.kakrizky:lightwind-layer-realtime:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-realtime:0.1.0")` |
 
 ### Cache (`lightwind-layer-cache`)
 
@@ -670,6 +671,59 @@ public PaymentResult processPayment(PaymentRequest req) {
 
 REST API at `/api/webhooks` — register, list, unregister, test, view deliveries.
 
+### Realtime (`lightwind-layer-realtime`)
+
+STOMP 1.2 over WebSocket + SSE for real-time communication.
+
+**STOMP (bidirectional):**
+```java
+// Server: push messages to a specific user
+@Inject LightMessagingService messaging;
+messaging.sendToUser(userId, "/queue/progress", progressDto);
+
+// Server: broadcast to all subscribers
+messaging.broadcast("/topic/announcements", announcementDto);
+
+// Check if user is online
+boolean online = messaging.isUserOnline(userId);
+```
+
+Client (JavaScript — compatible with `@stomp/stompjs`):
+```javascript
+const client = new Client({
+  brokerURL: 'ws://localhost:8080/ws/stomp',
+  connectHeaders: { Authorization: 'Bearer ' + jwt },
+});
+client.onConnect = () => {
+  client.subscribe('/user/queue/progress', (msg) => {
+    const data = JSON.parse(msg.body);
+    updateProgressBar(data);
+  });
+};
+client.activate();
+```
+
+**Handle client→server messages:**
+```java
+@ApplicationScoped
+public class ChatHandler implements MessageHandler {
+    public String getDestination() { return "/app/chat.send"; }
+    public void handle(UUID userId, String destination, String payload) {
+        // process incoming message
+    }
+}
+```
+
+**SSE (server→client only, simpler alternative):**
+```java
+@Path("/api/events")
+@ApplicationScoped
+public class EventResource extends LightSseResource {
+    // GET /api/events/stream returns SSE stream
+    // Auth via standard Bearer JWT header
+}
+```
+
 ## Tech Stack
 
 - **Runtime**: Quarkus 3.17.7
@@ -689,6 +743,7 @@ REST API at `/api/webhooks` — register, list, unregister, test, view deliverie
 - **Search**: Elasticsearch 8.x (optional layer)
 - **Export**: Apache POI + OpenPDF (optional layer)
 - **Integration**: JDK HttpClient, webhooks, circuit breaker (optional layer)
+- **Realtime**: STOMP 1.2 over WebSocket + SSE (optional layer)
 
 ## Requirements
 

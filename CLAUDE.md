@@ -65,6 +65,26 @@ lightwind/                          # Multi-module Maven project
 │       ├── OutboxProcessor         # @Scheduled(every="5s") processes outbox
 │       ├── EntityEventPublisher    # Helper for entity CRUD lifecycle events
 │       └── OutboxStatus.java       # Enum (PENDING, PUBLISHED, FAILED)
+├── lightwind-layer-realtime/        # WebSocket (STOMP) + SSE
+│   └── src/main/java/dev/kakrizky/lightwind/realtime/
+│       ├── RealtimeConfig           # @ConfigMapping (enabled, heartbeat, SSE reconnect)
+│       ├── stomp/                   # STOMP 1.2 protocol layer
+│       │   ├── StompFrame           # Frame POJO (command, headers, body)
+│       │   ├── StompFrameCodec      # Parser + serializer
+│       │   ├── StompWebSocketEndpoint # @WebSocket(path="/ws/stomp")
+│       │   └── StompSessionHandler  # Per-connection state
+│       ├── connection/              # Connection + subscription tracking
+│       │   ├── ConnectionManager    # userId → WebSocket sessions
+│       │   └── SubscriptionRegistry # destination → subscriptions
+│       ├── messaging/
+│       │   └── LightMessagingService # Main API: sendToUser(), broadcast()
+│       ├── sse/
+│       │   ├── SseConnectionManager # userId → SSE streams
+│       │   └── LightSseResource     # Abstract base SSE endpoint
+│       ├── auth/
+│       │   └── WebSocketAuthenticator # JWT from STOMP CONNECT → userId
+│       └── handler/
+│           └── MessageHandler       # Interface for client→server messages
 ├── lightwind-build/                # Quarkus extension for layered native builds
 │   ├── runtime/                    # NativeLayerConfig, LayerInfo
 │   └── deployment/                 # LightwindProcessor (class scanning, reflection reg)
@@ -152,6 +172,9 @@ All classes use explicit getters/setters. This is intentional for GraalVM compat
 | REST client calls | `lightwind-layer-integration/` — use `LightRestClient` |
 | Webhooks | `lightwind-layer-integration/webhook/` — use `WebhookService` |
 | Circuit breaker | `lightwind-layer-integration/circuitbreaker/` — use `@LightCircuitBreaker` |
+| WebSocket/STOMP | `lightwind-layer-realtime/` — use `LightMessagingService.sendToUser()` |
+| SSE endpoints | `lightwind-layer-realtime/sse/` — extend `LightSseResource` |
+| Handle WS messages | `lightwind-layer-realtime/handler/` — implement `MessageHandler` |
 
 ## Build & Test
 
@@ -217,6 +240,8 @@ field__isnull=true       → IS_NULL
 - `lightwind-layer-export` — Excel (Apache POI), CSV (RFC 4180), PDF (OpenPDF), `@ExportColumn`, `LightExportService`
 - `lightwind-layer-integration` — `LightRestClient` (JDK HttpClient), webhooks (HMAC-SHA256, delivery tracking), `@LightCircuitBreaker` interceptor
 
+### Tier 4 (IMPLEMENTED — Realtime)
+- `lightwind-layer-realtime` — STOMP 1.2 over WebSocket (`quarkus-websockets-next`), SSE, `LightMessagingService`, `MessageHandler` interface
+
 ### Not Yet Implemented
-- `lightwind-layer-realtime` — WebSocket, SSE
 - `lightwind-layer-workflow` — state machine, approval flow
