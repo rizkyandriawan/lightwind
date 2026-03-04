@@ -232,8 +232,83 @@ class CrudIntegrationTest {
             .body("data.items", hasSize(3));
     }
 
+    // --- PATCH (partial update) ---
+
     @Test
     @Order(17)
+    void patch_updatesOnlyProvidedFields() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {"price": 999}
+            """)
+        .when()
+            .patch("/api/test-items/" + createdId)
+        .then()
+            .statusCode(200)
+            .body("data.price", equalTo(999))
+            .body("data.name", equalTo("Widget A Updated")); // unchanged
+    }
+
+    // --- Bulk operations ---
+
+    @Test
+    @Order(18)
+    void bulkCreate_createsMultipleItems() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                [
+                    {"name": "Bulk 1", "price": 10, "status": "active", "category": "bulk"},
+                    {"name": "Bulk 2", "price": 20, "status": "active", "category": "bulk"}
+                ]
+            """)
+        .when()
+            .post("/api/test-items/bulk")
+        .then()
+            .statusCode(200)
+            .body("data", hasSize(2))
+            .body("data[0].name", equalTo("Bulk 1"))
+            .body("data[1].name", equalTo("Bulk 2"));
+    }
+
+    @Test
+    @Order(19)
+    void bulkDelete_softDeletesMultipleItems() {
+        // Get IDs of bulk items
+        var ids = given()
+            .queryParam("category", "bulk")
+        .when()
+            .get("/api/test-items")
+        .then()
+            .extract().jsonPath().getList("data.items.id", String.class);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body(ids.stream().map(id -> "\"" + id + "\"").toList().toString())
+        .when()
+            .delete("/api/test-items/bulk")
+        .then()
+            .statusCode(200)
+            .body("data.deletedCount", equalTo(2));
+    }
+
+    @Test
+    @Order(20)
+    void afterBulkDelete_itemsExcluded() {
+        given()
+            .queryParam("category", "bulk")
+        .when()
+            .get("/api/test-items")
+        .then()
+            .statusCode(200)
+            .body("data.items", hasSize(0));
+    }
+
+    // --- Validation ---
+
+    @Test
+    @Order(21)
     void create_withMissingName_returnsValidationError() {
         given()
             .contentType(ContentType.JSON)
@@ -250,7 +325,7 @@ class CrudIntegrationTest {
     }
 
     @Test
-    @Order(18)
+    @Order(22)
     void getOne_returns404_forNonexistent() {
         given()
         .when()

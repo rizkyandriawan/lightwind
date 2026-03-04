@@ -1,9 +1,14 @@
 package dev.kakrizky.lightwind.crud;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.kakrizky.lightwind.auth.LightUser;
 import dev.kakrizky.lightwind.entity.LightEntity;
+import dev.kakrizky.lightwind.exception.BadRequestException;
+import dev.kakrizky.lightwind.response.BulkDeleteResult;
 import dev.kakrizky.lightwind.response.LightResponse;
 import dev.kakrizky.lightwind.response.PagedResult;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
@@ -18,7 +23,12 @@ import java.util.*;
 @Consumes(MediaType.APPLICATION_JSON)
 public abstract class LightCrudResource<E extends LightEntity<E, D>, D> {
 
+    @Inject
+    ObjectMapper objectMapper;
+
     protected abstract LightCrudService<E, D> getService();
+
+    protected abstract Class<D> getDtoClass();
 
     @GET
     public LightResponse<PagedResult<D>> getAll(
@@ -132,6 +142,37 @@ public abstract class LightCrudResource<E extends LightEntity<E, D>, D> {
         return LightResponse.ok(getService().update(id, dto, extractUser(securityContext)));
     }
 
+    @PATCH
+    @Path("{id}")
+    public LightResponse<D> patch(
+            @PathParam("id") UUID id,
+            D dto,
+            @Context SecurityContext securityContext
+    ) {
+        return LightResponse.ok(getService().patch(id, dto, extractUser(securityContext)));
+    }
+
+    @POST
+    @Path("bulk")
+    public LightResponse<List<D>> bulkCreate(
+            String body,
+            @Context SecurityContext securityContext
+    ) {
+        List<D> dtos = deserializeList(body);
+        return LightResponse.ok(getService().bulkCreate(dtos, extractUser(securityContext)));
+    }
+
+    @DELETE
+    @Path("bulk")
+    public LightResponse<BulkDeleteResult> bulkDelete(
+            String body,
+            @Context SecurityContext securityContext
+    ) {
+        List<UUID> ids = deserializeUuidList(body);
+        int count = getService().bulkDelete(ids, extractUser(securityContext));
+        return LightResponse.ok(new BulkDeleteResult(count));
+    }
+
     @DELETE
     @Path("{id}")
     public LightResponse<D> remove(
@@ -162,6 +203,23 @@ public abstract class LightCrudResource<E extends LightEntity<E, D>, D> {
             }
         }
         return null;
+    }
+
+    private List<D> deserializeList(String body) {
+        try {
+            return objectMapper.readValue(body,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, getDtoClass()));
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid request body: " + e.getMessage());
+        }
+    }
+
+    private List<UUID> deserializeUuidList(String body) {
+        try {
+            return objectMapper.readValue(body, new TypeReference<List<UUID>>() {});
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid request body: expected JSON array of UUIDs");
+        }
     }
 
     private int parseIntOrDefault(String value, int defaultValue) {

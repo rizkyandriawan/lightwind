@@ -10,6 +10,33 @@ public final class BeanUtil {
 
     private BeanUtil() {}
 
+    /**
+     * Copies only non-null properties from source to target (for PATCH/merge semantics).
+     * Null values in source are treated as "not set" and skipped.
+     */
+    public static void copyNonNullProperties(Object source, Object target, String... ignoreProperties) {
+        if (source == null || target == null) return;
+
+        Set<String> ignoreSet = new HashSet<>(Arrays.asList(ignoreProperties));
+
+        Class<?> targetClass = target.getClass();
+        while (targetClass != null && targetClass != Object.class) {
+            for (Field targetField : targetClass.getDeclaredFields()) {
+                String name = targetField.getName();
+                if (ignoreSet.contains(name)) continue;
+
+                try {
+                    Object value = getFieldValue(source, name, targetField.getType());
+                    if (value != null) {
+                        setFieldValue(target, name, targetField, value);
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            targetClass = targetClass.getSuperclass();
+        }
+    }
+
     public static void copyProperties(Object source, Object target, String... ignoreProperties) {
         if (source == null || target == null) return;
 

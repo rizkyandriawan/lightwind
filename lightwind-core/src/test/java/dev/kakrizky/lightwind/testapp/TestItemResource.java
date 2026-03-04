@@ -15,4 +15,9 @@ public class TestItemResource extends LightCrudResource<TestItem, TestItemDto> {
     protected LightCrudService<TestItem, TestItemDto> getService() {
         return service;
     }
+
+    @Override
+    protected Class<TestItemDto> getDtoClass() {
+        return TestItemDto.class;
+    }
 }

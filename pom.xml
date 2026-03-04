@@ -15,6 +15,7 @@
 
     <modules>
         <module>lightwind-core</module>
+        <module>lightwind-build</module>
     </modules>
 
     <properties>
@@ -77,6 +78,27 @@
             <properties>
                 <skipITs>false</skipITs>
                 <quarkus.native.enabled>true</quarkus.native.enabled>
+            </properties>
+        </profile>
+
+        <!-- Build the base layer (.nil file) for layered native images -->
+        <profile>
+            <id>native-base-layer</id>
+            <properties>
+                <skipITs>true</skipITs>
+                <quarkus.native.enabled>true</quarkus.native.enabled>
+                <quarkus.native.additional-build-args>--shared,-H:+AllowImageLayering,-H:Name=lightwind-base</quarkus.native.additional-build-args>
+            </properties>
+        </profile>
+
+        <!-- Build app using pre-built base layer -->
+        <profile>
+            <id>native-layered</id>
+            <properties>
+                <skipITs>false</skipITs>
+                <quarkus.native.enabled>true</quarkus.native.enabled>
+                <lightwind.native.layer.enabled>true</lightwind.native.layer.enabled>
+                <quarkus.native.additional-build-args>--layer,${lightwind.native.layer.path}</quarkus.native.additional-build-args>
             </properties>
         </profile>
     </profiles>

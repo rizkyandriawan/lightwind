@@ -1,5 +1,7 @@
 package dev.kakrizky.lightwind.crud;
 
+import dev.kakrizky.lightwind.audit.AuditAction;
+import dev.kakrizky.lightwind.audit.AuditLogService;
 import dev.kakrizky.lightwind.auth.LightUser;
 import dev.kakrizky.lightwind.entity.LightEntity;
 import dev.kakrizky.lightwind.exception.BadRequestException;
@@ -22,8 +24,16 @@ public abstract class LightCrudService<E extends LightEntity<E, D>, D> {
     @Inject
     EntityManager em;
 
+    @Inject
+    AuditLogService auditLogService;
+
     protected abstract Class<E> getEntityClass();
     protected abstract Class<D> getDtoClass();
+
+    /**
+     * Override to enable audit logging for this service.
+     */
+    protected boolean isAuditEnabled() { return false; }
 
     // --- Validation hooks ---
 
@@ -82,7 +92,11 @@ public abstract class LightCrudService<E extends LightEntity<E, D>, D> {
             beforeCreate(dto, entity);
             entity.persist();
             afterCreate(entity);
-            return entity.toCompleteDto();
+            D result = entity.toCompleteDto();
+            if (isAuditEnabled()) {
+                auditLogService.log(AuditAction.CREATE, entity, null, result, user);
+            }
+            return result;
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException("Entity creation failed", e);
         }
@@ -95,6 +109,8 @@ public abstract class LightCrudService<E extends LightEntity<E, D>, D> {
             throw new ObjectNotFoundException(getEntityClass().getSimpleName() + " not found");
         }
 
+        D previousDto = isAuditEnabled() ? entity.toCompleteDto() : null;
+
         List<ValidationError> errors = validateUpdate(dto);
         if (!errors.isEmpty()) {
             throw new ValidationErrorException("Validation failed", errors);
@@ -104,7 +120,77 @@ public abstract class LightCrudService<E extends LightEntity<E, D>, D> {
         beforeUpdate(dto, entity);
         entity.persist();
         afterUpdate(entity);
-        return entity.toCompleteDto();
+        D result = entity.toCompleteDto();
+        if (isAuditEnabled()) {
+            auditLogService.log(AuditAction.UPDATE, entity, previousDto, result, user);
+        }
+        return result;
+    }
+
+    @Transactional
+    public D patch(UUID id, D dto, LightUser user) {
+        E entity = em.find(getEntityClass(), id);
+        if (entity == null || entity.getDeletedAt() != null) {
+            throw new ObjectNotFoundException(getEntityClass().getSimpleName() + " not found");
+        }
+
+        D previousDto = isAuditEnabled() ? entity.toCompleteDto() : null;
+
+        entity.patchFromDto(dto, user);
+        beforeUpdate(dto, entity);
+        entity.persist();
+        afterUpdate(entity);
+        D result = entity.toCompleteDto();
+        if (isAuditEnabled()) {
+            auditLogService.log(AuditAction.UPDATE, entity, previousDto, result, user);
+        }
+        return result;
+    }
+
+    @Transactional
+    public List<D> bulkCreate(List<D> dtos, LightUser user) {
+        if (dtos == null || dtos.isEmpty()) {
+            throw new BadRequestException("Request body must contain at least one item");
+        }
+
+        List<D> results = new java.util.ArrayList<>();
+        for (D dto : dtos) {
+            List<ValidationError> errors = validateCreate(dto);
+            if (!errors.isEmpty()) {
+                throw new ValidationErrorException("Validation failed", errors);
+            }
+
+            try {
+                E entity = getEntityClass().getDeclaredConstructor().newInstance();
+                entity.fillFromDto(dto, user);
+                beforeCreate(dto, entity);
+                entity.persist();
+                afterCreate(entity);
+                results.add(entity.toCompleteDto());
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException("Entity creation failed", e);
+            }
+        }
+        return results;
+    }
+
+    @Transactional
+    public int bulkDelete(List<UUID> ids, LightUser user) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BadRequestException("Request body must contain at least one ID");
+        }
+
+        int count = 0;
+        for (UUID id : ids) {
+            E entity = em.find(getEntityClass(), id);
+            if (entity != null && entity.getDeletedAt() == null) {
+                beforeRemove(entity);
+                entity.markAsDeleted(user);
+                entity.persist();
+                count++;
+            }
+        }
+        return count;
     }
 
     @Transactional
@@ -120,7 +206,11 @@ public abstract class LightCrudService<E extends LightEntity<E, D>, D> {
         beforeRemove(entity);
         entity.markAsDeleted(user);
         entity.persist();
-        return entity.toDto();
+        D result = entity.toDto();
+        if (isAuditEnabled()) {
+            auditLogService.log(AuditAction.DELETE, entity, result, null, user);
+        }
+        return result;
     }
 
     @Transactional
@@ -135,7 +225,11 @@ public abstract class LightCrudService<E extends LightEntity<E, D>, D> {
 
         entity.restore();
         entity.persist();
-        return entity.toCompleteDto();
+        D result = entity.toCompleteDto();
+        if (isAuditEnabled()) {
+            auditLogService.log(AuditAction.RESTORE, entity, null, result, user);
+        }
+        return result;
     }
 
     // --- Metadata helpers ---

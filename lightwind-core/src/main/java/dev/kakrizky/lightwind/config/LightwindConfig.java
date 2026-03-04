@@ -18,8 +18,17 @@ public interface LightwindConfig {
         @WithDefault("false")
         boolean bypassEnabled();
 
-        @WithDefault("86400")
+        /**
+         * Access token expiration in seconds (default: 15 minutes).
+         */
+        @WithDefault("900")
         long tokenExpiration();
+
+        /**
+         * Refresh token expiration in seconds (default: 30 days).
+         */
+        @WithDefault("2592000")
+        long refreshTokenExpiration();
 
         @WithDefault("lightwind")
         String issuer();

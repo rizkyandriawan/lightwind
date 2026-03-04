@@ -1,0 +1,6 @@
+name: Lightwind Build
+description: Build-time processing and layered native image support for Lightwind
+metadata:
+  status: experimental
+  categories:
+    - "build-tools"

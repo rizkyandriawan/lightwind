@@ -52,6 +52,9 @@ public abstract class LightEntity<E extends LightEntity<E, D>, D>
     @Column
     private String deletedByName;
 
+    @Version
+    private Long version;
+
     // --- Abstract methods ---
 
     protected abstract Class<D> getDtoClass();
@@ -85,12 +88,25 @@ public abstract class LightEntity<E extends LightEntity<E, D>, D>
 
     @SuppressWarnings("unchecked")
     public E fillFromDto(D dto, LightUser user) {
-        BeanUtil.copyProperties(dto, this, "id", "createdAt", "updatedAt", "deletedAt");
+        BeanUtil.copyProperties(dto, this, "id", "createdAt", "updatedAt", "deletedAt", "version");
         if (user != null) {
             if (this.createdById == null) {
                 this.createdById = user.userId();
                 this.createdByName = user.userName();
             }
+            this.updatedById = user.userId();
+            this.updatedByName = user.userName();
+        }
+        return (E) this;
+    }
+
+    /**
+     * Partial update: only copies non-null fields from DTO (PATCH merge semantics).
+     */
+    @SuppressWarnings("unchecked")
+    public E patchFromDto(D dto, LightUser user) {
+        BeanUtil.copyNonNullProperties(dto, this, "id", "createdAt", "updatedAt", "deletedAt", "version");
+        if (user != null) {
             this.updatedById = user.userId();
             this.updatedByName = user.userName();
         }
@@ -150,4 +166,7 @@ public abstract class LightEntity<E extends LightEntity<E, D>, D>
 
     public String getDeletedByName() { return deletedByName; }
     public void setDeletedByName(String deletedByName) { this.deletedByName = deletedByName; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(Long version) { this.version = version; }
 }

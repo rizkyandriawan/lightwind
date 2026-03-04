@@ -1,5 +1,6 @@
 package dev.kakrizky.lightwind.exception;
 
+import dev.kakrizky.lightwind.filter.RequestIdFilter;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -31,6 +32,10 @@ public class LightExceptionMapper implements ExceptionMapper<Exception> {
             body.put("error", "Bad Request");
             body.put("message", ve.getMessage());
             body.put("errors", ve.getErrors());
+            String rid = RequestIdFilter.getCurrentRequestId();
+            if (rid != null) {
+                body.put("requestId", rid);
+            }
             return Response.status(400)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(body)
@@ -58,6 +63,10 @@ public class LightExceptionMapper implements ExceptionMapper<Exception> {
         body.put("status", status);
         body.put("error", error);
         body.put("message", message);
+        String requestId = RequestIdFilter.getCurrentRequestId();
+        if (requestId != null) {
+            body.put("requestId", requestId);
+        }
         return Response.status(status)
                 .type(MediaType.APPLICATION_JSON)
                 .entity(body)
