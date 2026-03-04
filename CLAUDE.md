@@ -147,6 +147,11 @@ All classes use explicit getters/setters. This is intentional for GraalVM compat
 | Send emails | `lightwind-layer-email/` — use `LightMailService` |
 | Background jobs | `lightwind-layer-scheduler/` — implement `LightJob` interface |
 | Publish events | `lightwind-layer-events/` — use `EventBus` or `EntityEventPublisher` |
+| Full-text search | `lightwind-layer-search/` — use `LightSearchService`, `@Searchable` |
+| Export data | `lightwind-layer-export/` — use `LightExportService`, `@ExportColumn` |
+| REST client calls | `lightwind-layer-integration/` — use `LightRestClient` |
+| Webhooks | `lightwind-layer-integration/webhook/` — use `WebhookService` |
+| Circuit breaker | `lightwind-layer-integration/circuitbreaker/` — use `@LightCircuitBreaker` |
 
 ## Build & Test
 
@@ -207,9 +212,11 @@ field__isnull=true       → IS_NULL
 - `lightwind-layer-scheduler` — Persistent JobRecord entity, LightJob interface, JobProcessor (10s poll), REST API
 - `lightwind-layer-events` — CDI EventBus (sync/async), OutboxEvent entity, OutboxProcessor (5s poll), EntityEventPublisher
 
-### Tier 3 (planned for 0.3+ — Enterprise)
-- `lightwind-layer-search` — Elasticsearch
-- `lightwind-layer-export` — Excel/CSV/PDF
-- `lightwind-layer-integration` — REST client, webhooks, circuit breaker
+### Tier 3 (IMPLEMENTED — Enterprise)
+- `lightwind-layer-search` — Elasticsearch client, `@Searchable`/`@SearchField` annotations, `LightSearchService`, `SearchResource`
+- `lightwind-layer-export` — Excel (Apache POI), CSV (RFC 4180), PDF (OpenPDF), `@ExportColumn`, `LightExportService`
+- `lightwind-layer-integration` — `LightRestClient` (JDK HttpClient), webhooks (HMAC-SHA256, delivery tracking), `@LightCircuitBreaker` interceptor
+
+### Not Yet Implemented
 - `lightwind-layer-realtime` — WebSocket, SSE
 - `lightwind-layer-workflow` — state machine, approval flow

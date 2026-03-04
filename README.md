@@ -566,6 +566,93 @@ outbox.save("order.created", "order-service", orderPayload);
 
 Configure outbox: `lightwind.events.outbox.enabled=true`
 
+### Search (`lightwind-layer-search`)
+
+Elasticsearch integration with annotation-driven indexing.
+
+```java
+@Searchable(index = "products")
+public class ProductDto {
+    @SearchField(type = SearchFieldType.TEXT, boost = 2.0f)
+    private String name;
+
+    @SearchField(type = SearchFieldType.KEYWORD)
+    private String category;
+
+    @SearchField(type = SearchFieldType.FLOAT)
+    private float price;
+}
+
+// Index & search
+@Inject LightSearchService searchService;
+searchService.index("products", productId, productDto);
+
+SearchResult<Map<String, Object>> results = searchService.search("products",
+    SearchRequest.builder()
+        .query("wireless headphones")
+        .filter("category", "electronics")
+        .page(0).size(20)
+        .highlight(true)
+        .build());
+```
+
+### Export (`lightwind-layer-export`)
+
+Export data to Excel (XLSX), CSV, or PDF with annotation-driven column definitions.
+
+```java
+public class OrderDto {
+    @ExportColumn(header = "Order #", order = 1)
+    private String orderNumber;
+
+    @ExportColumn(header = "Customer", order = 2)
+    private String customerName;
+
+    @ExportColumn(header = "Total", order = 3, format = "#,##0.00")
+    private BigDecimal total;
+
+    @ExportColumn(header = "Date", order = 4, format = "yyyy-MM-dd")
+    private LocalDateTime createdAt;
+}
+
+@Inject LightExportService exportService;
+
+// Export to Excel
+byte[] xlsx = exportService.export(orders, ExportRequest.builder()
+    .fileName("orders")
+    .format(ExportFormat.XLSX)
+    .title("Order Report")
+    .build());
+
+// Or get a JAX-RS Response with proper headers
+Response response = exportService.exportAsResponse(orders, request);
+```
+
+### Integration (`lightwind-layer-integration`)
+
+REST client, webhook management, and circuit breaker pattern.
+
+```java
+// REST client
+@Inject LightRestClient restClient;
+UserDto user = restClient.get("https://api.example.com/users/1", UserDto.class);
+OrderDto created = restClient.post("https://api.example.com/orders", orderDto, OrderDto.class);
+
+// Webhooks — register & dispatch
+@Inject WebhookService webhookService;
+webhookService.register("Order Events", "https://partner.com/webhook",
+    "order.created,order.updated", "signing-secret");
+webhookService.dispatch("order.created", orderData);  // sends to all subscribers
+
+// Circuit breaker
+@LightCircuitBreaker(name = "payment-api", failureThreshold = 3)
+public PaymentResult processPayment(PaymentRequest req) {
+    return restClient.post("https://payment.example.com/charge", req, PaymentResult.class);
+}
+```
+
+REST API at `/api/webhooks` — register, list, unregister, test, view deliveries.
+
 ## Tech Stack
 
 - **Runtime**: Quarkus 3.17.7
@@ -582,6 +669,9 @@ Configure outbox: `lightwind.events.outbox.enabled=true`
 - **Email**: Quarkus Mailer + Qute (optional layer)
 - **Scheduler**: Quarkus Scheduler (optional layer)
 - **Events**: CDI Events + Outbox (optional layer)
+- **Search**: Elasticsearch 8.x (optional layer)
+- **Export**: Apache POI + OpenPDF (optional layer)
+- **Integration**: JDK HttpClient, webhooks, circuit breaker (optional layer)
 
 ## Requirements
 
