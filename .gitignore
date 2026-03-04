@@ -3,3 +3,22 @@ DESIGN.md
 PLANNING.md
 RESEARCH.md
 PLAN.md
+LAYERED-BUILD.md
+USE-CASES.md
+
+# Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
