@@ -24,9 +24,50 @@ lightwind/                          # Multi-module Maven project
 │       ├── dto/                    # RangeDto, DateRangeDto, IdNameDto, KeyValueDto
 │       ├── config/                 # LightwindConfig (@ConfigMapping)
 │       └── util/                   # BeanUtil (getter/setter based property copy)
-└── lightwind-build/                # Quarkus extension for layered native builds
-    ├── runtime/                    # NativeLayerConfig, LayerInfo
-    └── deployment/                 # LightwindProcessor (class scanning, reflection reg)
+├── lightwind-layer-cache/          # Redis caching + distributed lock
+│   └── src/main/java/dev/kakrizky/lightwind/cache/
+│       ├── LightCache.java         # @InterceptorBinding annotation
+│       ├── LightCacheInterceptor   # CDI interceptor, Redis get/set
+│       ├── LightCacheService       # Redis wrapper (get, put, evict, evictByPrefix)
+│       ├── LightCacheConfig        # @ConfigMapping (enabled, defaultTtl, keyPrefix)
+│       └── LightDistributedLock    # Redis SET NX EX based distributed lock
+├── lightwind-layer-storage/        # File storage (local + S3/MinIO)
+│   └── src/main/java/dev/kakrizky/lightwind/storage/
+│       ├── StorageProvider.java    # Interface (upload, download, delete, presignedUrl)
+│       ├── LocalStorageProvider    # Filesystem implementation
+│       ├── S3StorageProvider       # AWS S3 / MinIO implementation
+│       ├── LightStorageService     # Facade (provider selection, validation)
+│       ├── StorageResource         # Abstract REST (download, delete, upload helper)
+│       ├── StorageConfig           # @ConfigMapping (provider, s3*, maxFileSize)
+│       └── FileInfo.java           # Record DTO (path, fileName, contentType, size, url)
+├── lightwind-layer-email/          # Email sending with templates
+│   └── src/main/java/dev/kakrizky/lightwind/email/
+│       ├── LightMailService        # Send sync/async/bulk via Quarkus Mailer
+│       ├── EmailRequest            # Builder pattern (to, subject, body, template, attach)
+│       ├── EmailTemplate           # Static factory: welcome, resetPassword, verification
+│       ├── EmailConfig             # @ConfigMapping (fromAddress, fromName, asyncEnabled)
+│       └── templates/emails/       # Qute HTML templates (welcome, reset, verify)
+├── lightwind-layer-scheduler/      # Background job queue
+│   └── src/main/java/dev/kakrizky/lightwind/scheduler/
+│       ├── LightJob.java           # Interface (getJobName, execute, getMaxRetries)
+│       ├── JobRecord.java          # @Entity (lightwind_jobs table, persistent queue)
+│       ├── JobSchedulerService     # Enqueue, cancel, list jobs
+│       ├── JobProcessor            # @Scheduled(every="10s") polls and executes jobs
+│       ├── JobResource             # REST API (/api/jobs — list, get, enqueue, cancel)
+│       └── JobStatus.java          # Enum (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED)
+├── lightwind-layer-events/         # CDI events + outbox pattern
+│   └── src/main/java/dev/kakrizky/lightwind/events/
+│       ├── LightEvent.java         # Base event (eventType, payload, sourceId, correlationId)
+│       ├── EventBus.java           # CDI event publisher (sync + async)
+│       ├── LightEventListener      # @Qualifier for @Observes/@ObservesAsync
+│       ├── OutboxEvent.java        # @Entity (lightwind_outbox table)
+│       ├── OutboxService           # Save, poll, mark published/failed
+│       ├── OutboxProcessor         # @Scheduled(every="5s") processes outbox
+│       ├── EntityEventPublisher    # Helper for entity CRUD lifecycle events
+│       └── OutboxStatus.java       # Enum (PENDING, PUBLISHED, FAILED)
+├── lightwind-build/                # Quarkus extension for layered native builds
+│   ├── runtime/                    # NativeLayerConfig, LayerInfo
+│   └── deployment/                 # LightwindProcessor (class scanning, reflection reg)
 ```
 
 ## Critical Implementation Details
@@ -101,6 +142,11 @@ All classes use explicit getters/setters. This is intentional for GraalVM compat
 | Modify response wrapper | `response/LightResponse.java` |
 | Add build-time processing | `lightwind-build/deployment/LightwindProcessor.java` |
 | Change config options | `config/LightwindConfig.java` |
+| Add caching to a method | `lightwind-layer-cache/` — use `@LightCache` annotation |
+| File upload/download | `lightwind-layer-storage/` — extend `StorageResource` |
+| Send emails | `lightwind-layer-email/` — use `LightMailService` |
+| Background jobs | `lightwind-layer-scheduler/` — implement `LightJob` interface |
+| Publish events | `lightwind-layer-events/` — use `EventBus` or `EntityEventPublisher` |
 
 ## Build & Test
 
@@ -154,12 +200,12 @@ field__isnull=true       → IS_NULL
 - Database seeding
 - Forgot/reset password (hooks exist, need email layer)
 
-### Tier 2 (planned for 0.2 — SaaS Ready)
-- `lightwind-layer-cache` — Redis, @LightCache, distributed lock
-- `lightwind-layer-storage` — S3/MinIO, file upload, image processing
-- `lightwind-layer-email` — SMTP, templates, async queue
-- `lightwind-layer-scheduler` — background jobs, cron
-- `lightwind-layer-events` — event bus, Kafka, outbox pattern
+### Tier 2 (IMPLEMENTED — SaaS Ready)
+- `lightwind-layer-cache` — Redis, @LightCache interceptor, LightCacheService, LightDistributedLock
+- `lightwind-layer-storage` — Local + S3/MinIO via StorageProvider interface, file validation, presigned URLs
+- `lightwind-layer-email` — Quarkus Mailer (sync/async/bulk), Qute templates, EmailTemplate helpers
+- `lightwind-layer-scheduler` — Persistent JobRecord entity, LightJob interface, JobProcessor (10s poll), REST API
+- `lightwind-layer-events` — CDI EventBus (sync/async), OutboxEvent entity, OutboxProcessor (5s poll), EntityEventPublisher
 
 ### Tier 3 (planned for 0.3+ — Enterprise)
 - `lightwind-layer-search` — Elasticsearch

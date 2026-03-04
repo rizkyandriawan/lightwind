@@ -454,6 +454,118 @@ your-app/
 └── pom.xml
 ```
 
+## Optional Layers
+
+Lightwind provides additional modules for common SaaS needs. Add them as dependencies:
+
+### Cache (`lightwind-layer-cache`)
+
+Redis-based caching with annotation-driven cache + distributed locks.
+
+```java
+@LightCache(key = "products", ttl = 300)
+public List<Product> getPopularProducts() { ... }
+
+// Programmatic cache
+@Inject LightCacheService cacheService;
+cacheService.put("key", value, 600);
+cacheService.evictByPrefix("products:");
+
+// Distributed lock
+@Inject LightDistributedLock lock;
+if (lock.tryLock("process-orders", 30)) {
+    try { /* critical section */ }
+    finally { lock.unlock("process-orders"); }
+}
+```
+
+### Storage (`lightwind-layer-storage`)
+
+File storage abstraction — local filesystem or S3/MinIO, switchable via config.
+
+```properties
+lightwind.storage.provider=s3          # or "local"
+lightwind.storage.s3.bucket=my-bucket
+lightwind.storage.s3.endpoint=http://localhost:9000  # MinIO
+lightwind.storage.max-file-size=10485760             # 10MB
+```
+
+```java
+@Inject LightStorageService storage;
+FileInfo info = storage.upload("uploads/photo.jpg", inputStream, "image/jpeg", size);
+String url = storage.generatePresignedUrl("uploads/photo.jpg");
+```
+
+### Email (`lightwind-layer-email`)
+
+Email sending via Quarkus Mailer with Qute templates and built-in email templates.
+
+```java
+@Inject LightMailService mailService;
+
+// Simple send
+mailService.send(EmailRequest.builder()
+    .to("user@example.com")
+    .subject("Welcome!")
+    .template("welcome", Map.of("name", "Alice", "loginUrl", "/login"))
+    .build());
+
+// Built-in templates
+mailService.send(EmailTemplate.welcome("user@example.com", "Alice", "/login"));
+mailService.send(EmailTemplate.resetPassword("user@example.com", "Alice", "/reset?token=abc"));
+```
+
+### Scheduler (`lightwind-layer-scheduler`)
+
+Persistent background job queue with retry support and REST monitoring API.
+
+```java
+// Define a job
+@ApplicationScoped
+public class SendReportJob implements LightJob {
+    public String getJobName() { return "send-report"; }
+    public String execute(String payload) throws Exception {
+        // process payload JSON, return result JSON
+    }
+}
+
+// Enqueue
+@Inject JobSchedulerService scheduler;
+UUID jobId = scheduler.enqueue("send-report", "{\"reportId\": \"123\"}");
+
+// Schedule for later
+scheduler.enqueue("send-report", payload, LocalDateTime.now().plusHours(1));
+```
+
+REST API at `/api/jobs` — list, get, enqueue, cancel.
+
+### Events (`lightwind-layer-events`)
+
+CDI event bus with outbox pattern for reliable event publishing.
+
+```java
+// Publish events
+@Inject EventBus eventBus;
+eventBus.publish(new LightEvent("order.created", orderJson, orderId, "Order"));
+eventBus.publishAsync(event);  // non-blocking
+
+// Listen for events
+public void onOrderCreated(@Observes @LightEventListener LightEvent event) {
+    if ("order.created".equals(event.getEventType())) { ... }
+}
+
+// Entity lifecycle events (auto-publish CRUD events)
+@Inject EntityEventPublisher publisher;
+publisher.entityCreated("Product", productId, productDto);
+
+// Outbox pattern (reliable cross-service events)
+@Inject OutboxService outbox;
+outbox.save("order.created", "order-service", orderPayload);
+// OutboxProcessor polls every 5s and publishes pending events
+```
+
+Configure outbox: `lightwind.events.outbox.enabled=true`
+
 ## Tech Stack
 
 - **Runtime**: Quarkus 3.17.7
@@ -465,6 +577,11 @@ your-app/
 - **API Docs**: SmallRye OpenAPI (Swagger)
 - **Health**: SmallRye Health
 - **Native**: GraalVM with layered image support
+- **Cache**: Quarkus Redis (optional layer)
+- **Storage**: AWS S3 SDK (optional layer)
+- **Email**: Quarkus Mailer + Qute (optional layer)
+- **Scheduler**: Quarkus Scheduler (optional layer)
+- **Events**: CDI Events + Outbox (optional layer)
 
 ## Requirements
 
