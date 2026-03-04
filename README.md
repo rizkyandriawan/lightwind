@@ -18,12 +18,18 @@ Lightwind (native)      15-30s*       0.02s       30-50MB
 
 ### 1. Add dependency
 
+**Maven:**
 ```xml
 <dependency>
     <groupId>dev.kakrizky</groupId>
     <artifactId>lightwind-core</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
+```
+
+**Gradle (Kotlin DSL):**
+```kotlin
+implementation("dev.kakrizky:lightwind-core:0.1.0")
 ```
 
 ### 2. Define your entity
@@ -457,6 +463,17 @@ your-app/
 ## Optional Layers
 
 Lightwind provides additional modules for common SaaS needs. Add them as dependencies:
+
+| Module | Maven | Gradle |
+|--------|-------|--------|
+| Cache | `dev.kakrizky:lightwind-layer-cache:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-cache:0.1.0")` |
+| Storage | `dev.kakrizky:lightwind-layer-storage:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-storage:0.1.0")` |
+| Email | `dev.kakrizky:lightwind-layer-email:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-email:0.1.0")` |
+| Scheduler | `dev.kakrizky:lightwind-layer-scheduler:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-scheduler:0.1.0")` |
+| Events | `dev.kakrizky:lightwind-layer-events:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-events:0.1.0")` |
+| Search | `dev.kakrizky:lightwind-layer-search:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-search:0.1.0")` |
+| Export | `dev.kakrizky:lightwind-layer-export:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-export:0.1.0")` |
+| Integration | `dev.kakrizky:lightwind-layer-integration:0.1.0` | `implementation("dev.kakrizky:lightwind-layer-integration:0.1.0")` |
 
 ### Cache (`lightwind-layer-cache`)
 
