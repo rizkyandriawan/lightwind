@@ -20,6 +20,9 @@
         <module>lightwind-layer-events</module>
         <module>lightwind-layer-storage</module>
         <module>lightwind-layer-scheduler</module>
+        <module>lightwind-layer-search</module>
+        <module>lightwind-layer-export</module>
+        <module>lightwind-layer-integration</module>
         <module>lightwind-build</module>
     </modules>
 
